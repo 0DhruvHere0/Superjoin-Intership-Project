@@ -1,0 +1,162 @@
+:root {
+    color-scheme: light;
+    font-family: Arial, sans-serif;
+    color: #172033;
+    background: #f4f6f8;
+}
+*{
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+}
+.container {
+    width: min(1200px, 94%);
+    margin: 0 auto;
+    padding: 32px 0;
+}
+header {
+    margin-bottom: 24px;
+}
+h1,
+h2,
+h3,
+p {
+    margin-top: 0;
+}
+h1 {
+    margin-bottom: 8px;
+}
+.subtitle {
+    color: #596579;
+}
+.panel,
+.sidebar,
+.content {
+    background: #ffffff;
+    border: 1px solid #dce2ea;
+    border-radius: 12px;
+    padding: 20px;
+}
+.panel {
+    margin-bottom: 24px;
+}
+form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+input[type="file"] {
+    flex: 1;
+    min-width: 240px;
+}
+button {
+    border: 0;
+    border-radius: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    background: #2457c5;
+    color: #ffffff;
+    font-weight: 600;
+}
+button:hover {
+    background: #1d46a2;
+}
+.message {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #eef3ff;
+    color: #244b9b;
+}
+.layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+.document-button {
+    width: 100%;
+    margin-bottom: 10px;
+    text-align: left;
+    background: #f0f3f8;
+    color: #172033;
+    border: 1px solid #dce2ea;
+}
+.document-button:hover,
+.document-button.active {
+    background: #e2eaff;
+    border-color: #2457c5;
+}
+.document-name {
+    display: block;
+    overflow-wrap: anywhere;
+    margin-bottom: 5px;
+}
+.document-status {
+    font-size: 12px;
+    color: #596579;
+}
+.section {
+    margin-top: 28px;
+}
+.fact,
+.relation,
+.issue {
+    border: 1px solid #dce2ea;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+.fact-header,
+.relation-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+.fact-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2457c5;
+}
+.label {
+    color: #596579;
+    font-size: 13px;
+}
+.quote {
+    margin: 12px 0 0;
+    padding: 10px;
+    border-left: 4px solid #91a8d8;
+    background: #f6f8fb;
+    color: #39445a;
+}
+.badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #e8edf5;
+}
+.badge-corroborate {
+    background: #dff5e6;
+    color: #176b32;
+}
+.badge-contradict {
+    background: #ffe2e2;
+    color: #a52a2a;
+}
+.badge-reconcile {
+    background: #fff0cf;
+    color: #805b00;
+}
+.empty {
+    color: #596579;
+}
+@media (max-width: 760px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+}
