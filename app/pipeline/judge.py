@@ -4,6 +4,9 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field, ValidationError
 from app.config import settings
+from app.pipeline.rate_limiter import (
+    run_with_gemini_retry,
+)
 RelationshipType = Literal[
     "corroborate",
     "contradict",
@@ -14,9 +17,7 @@ class RelationshipJudgment(BaseModel):
     relationship: RelationshipType
     explanation: str = Field(min_length=1)
 class JudgeError(Exception):
-    """
-    Raised when relationship judging fails.
-    """
+    pass
 RELATIONSHIP_JSON_SCHEMA: Dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -45,7 +46,7 @@ def _get_gemini_client() -> genai.Client:
             "GEMINI_API_KEY is not configured."
         )
     return genai.Client(
-        api_key=settings.gemini_api_key
+        api_key=settings.gemini_api_key,
     )
 def _format_fact(
     label: str,
@@ -74,36 +75,28 @@ def _build_judge_prompt(
     similarity: float,
 ) -> str:
     return f"""
-You are comparing two extracted facts from documents.
-The embedding similarity between them is {similarity:.4f}.
-Similarity only means they may be related. It is not the final decision.
-Classify the pair using exactly one relationship:
-- corroborate:
-  The facts describe the same underlying claim and have
-  compatible values.
-- contradict:
-  The facts describe the same relevant context but contain
-  genuinely incompatible values.
-- reconcile:
-  The values appear different, but the difference is explained
-  by context such as time period, scope, unit, estimate versus
-  actual, subset versus total, or another explicit qualifier.
-- unrelated:
-  The facts are not actually about the same claim.
+Compare two extracted facts from PDF documents.
+Embedding similarity: {similarity:.4f}
+Classify the relationship as exactly one of:
+corroborate:
+The facts describe the same underlying claim and contain compatible information.
+contradict:
+The facts describe the same context but contain genuinely incompatible information.
+reconcile:
+The facts appear different, but the difference is explained by time, scope, unit,
+estimate versus actual, subset versus total, or another explicit qualifier.
+unrelated:
+The facts are not actually about the same claim.
 Rules:
-1. Use only the information provided in the two facts.
+1. Use only the information provided below.
 2. Do not use outside knowledge.
 3. Pay attention to subject, predicate, value, unit, and time scope.
-4. The explanation is mandatory.
-5. The explanation must reference the specific values or context
-   that led to the decision.
-6. Do not classify facts as contradicting merely because their
-   numbers differ if their time periods or scopes differ.
-7. Do not classify facts as corroborating merely because they use
-   similar words.
-Fact A:
+4. The explanation must mention the specific values or context.
+5. Different numbers do not automatically mean contradiction.
+6. Similar words do not automatically mean corroboration.
+FACT A:
 {_format_fact("FACT A", fact_a)}
-Fact B:
+FACT B:
 {_format_fact("FACT B", fact_b)}
 """.strip()
 def judge_relationship(
@@ -121,15 +114,18 @@ def judge_relationship(
         similarity=similarity,
     )
     client = _get_gemini_client()
-    try:
-        response = client.models.generate_content(
+    def generate_response():
+        return client.models.generate_content(
             model=settings.gemini_model,
             contents=prompt,
             config=types.GenerateContentConfig(
-                temperature=0.0,
                 response_mime_type="application/json",
                 response_json_schema=RELATIONSHIP_JSON_SCHEMA,
             ),
+        )
+    try:
+        response = run_with_gemini_retry(
+            generate_response
         )
         if not response.text:
             raise JudgeError(
@@ -146,5 +142,5 @@ def judge_relationship(
         ) from error
     except Exception as error:
         raise JudgeError(
-            f"Relationship judgment failed: {error}"
+            f"Gemini relationship judgment failed: {error}"
         ) from error

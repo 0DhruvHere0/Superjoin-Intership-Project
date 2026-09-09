@@ -3,6 +3,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = ""
     gemini_embedding_model: str = ""
+    openrouter_api_key: str= ""
+    openrouter_base_url: str= ""
+    openrouter_model: str= ""
     database_path: str = "data/knowledge.db"
     upload_dir: str = "data/uploads"
     similarity_threshold: float = 0.72

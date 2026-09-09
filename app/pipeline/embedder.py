@@ -5,6 +5,9 @@ from typing import List, Union
 from google import genai
 from app.config import settings
 from app.pipeline.fact_extractor import ExtractedFact
+from app.pipeline.rate_limiter import (
+    run_with_gemini_retry,
+)
 class EmbeddingError(Exception):
     pass
 @dataclass
@@ -18,14 +21,20 @@ def _get_gemini_client() -> genai.Client:
             "GEMINI_API_KEY is not configured."
         )
     return genai.Client(
-        api_key=settings.gemini_api_key
+        api_key=settings.gemini_api_key,
     )
-def build_embedding_key(fact: ExtractedFact) -> str:
+def build_embedding_key(
+    fact: ExtractedFact,
+) -> str:
     subject = fact.subject.strip()
     predicate = fact.predicate.strip()
     time_scope = (fact.time_scope or "").strip()
     return " | ".join(
-        [subject, predicate, time_scope]
+        [
+            subject,
+            predicate,
+            time_scope,
+        ]
     )
 def generate_embedding(
     fact: ExtractedFact,
@@ -40,10 +49,14 @@ def generate_embedding(
             "Cannot create an embedding key from an empty fact."
         )
     client = _get_gemini_client()
-    try:
-        response = client.models.embed_content(
+    def generate_response():
+        return client.models.embed_content(
             model=settings.gemini_embedding_model,
             contents=embed_key,
+        )
+    try:
+        response = run_with_gemini_retry(
+            generate_response
         )
         if not response.embeddings:
             raise EmbeddingError(
@@ -54,7 +67,10 @@ def generate_embedding(
             raise EmbeddingError(
                 "Gemini returned an empty embedding vector."
             )
-        vector = [float(value) for value in values]
+        vector = [
+            float(value)
+            for value in values
+        ]
         return EmbeddingResult(
             embed_key=embed_key,
             vector=vector,
@@ -87,4 +103,7 @@ def deserialize_embedding(
         raise ValueError(
             "Stored embedding is not a non-empty list."
         )
-    return [float(value) for value in values]
+    return [
+        float(value)
+        for value in values
+    ]

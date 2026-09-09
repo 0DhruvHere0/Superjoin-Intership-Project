@@ -13,12 +13,19 @@ def _managed_connection() -> Iterator[sqlite3.Connection]:
         raise
     finally:
         connection.close()
-def _row_to_dict(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
+def _row_to_dict(
+    row: Optional[sqlite3.Row],
+) -> Optional[Dict[str, Any]]:
     if row is None:
         return None
     return dict(row)
-def _rows_to_dicts(rows: List[sqlite3.Row]) -> List[Dict[str, Any]]:
-    return [dict(row) for row in rows]
+def _rows_to_dicts(
+    rows: List[sqlite3.Row],
+) -> List[Dict[str, Any]]:
+    return [
+        dict(row)
+        for row in rows
+    ]
 def create_document(
     document_id: str,
     filename: str,
@@ -51,23 +58,33 @@ def create_document(
             ),
         )
     return document_id
-def get_document(document_id: str) -> Optional[Dict[str, Any]]:
+def get_document(
+    document_id: str,
+) -> Optional[Dict[str, Any]]:
     query = """
         SELECT *
         FROM documents
         WHERE id = ?
     """
     with _managed_connection() as connection:
-        row = connection.execute(query, (document_id,)).fetchone()
+        row = connection.execute(
+            query,
+            (document_id,),
+        ).fetchone()
     return _row_to_dict(row)
-def get_document_by_hash(file_hash: str) -> Optional[Dict[str, Any]]:
+def get_document_by_hash(
+    file_hash: str,
+) -> Optional[Dict[str, Any]]:
     query = """
         SELECT *
         FROM documents
         WHERE file_hash = ?
     """
     with _managed_connection() as connection:
-        row = connection.execute(query, (file_hash,)).fetchone()
+        row = connection.execute(
+            query,
+            (file_hash,),
+        ).fetchone()
     return _row_to_dict(row)
 def list_documents() -> List[Dict[str, Any]]:
     query = """
@@ -89,16 +106,26 @@ def update_document_status(
             SET status = ?
             WHERE id = ?
         """
-        parameters = (status, document_id)
+        parameters = (
+            status,
+            document_id,
+        )
     else:
         query = """
             UPDATE documents
             SET status = ?, num_pages = ?
             WHERE id = ?
         """
-        parameters = (status, num_pages, document_id)
+        parameters = (
+            status,
+            num_pages,
+            document_id,
+        )
     with _managed_connection() as connection:
-        connection.execute(query, parameters)
+        connection.execute(
+            query,
+            parameters,
+        )
 def create_fact(
     fact_id: str,
     doc_id: str,
@@ -158,16 +185,23 @@ def create_fact(
             ),
         )
     return fact_id
-def get_fact(fact_id: str) -> Optional[Dict[str, Any]]:
+def get_fact(
+    fact_id: str,
+) -> Optional[Dict[str, Any]]:
     query = """
         SELECT *
         FROM facts
         WHERE id = ?
     """
     with _managed_connection() as connection:
-        row = connection.execute(query, (fact_id,)).fetchone()
+        row = connection.execute(
+            query,
+            (fact_id,),
+        ).fetchone()
     return _row_to_dict(row)
-def list_facts_by_document(doc_id: str) -> List[Dict[str, Any]]:
+def list_facts_by_document(
+    doc_id: str,
+) -> List[Dict[str, Any]]:
     query = """
         SELECT *
         FROM facts
@@ -175,7 +209,10 @@ def list_facts_by_document(doc_id: str) -> List[Dict[str, Any]]:
         ORDER BY page_start, created_at
     """
     with _managed_connection() as connection:
-        rows = connection.execute(query, (doc_id,)).fetchall()
+        rows = connection.execute(
+            query,
+            (doc_id,),
+        ).fetchall()
     return _rows_to_dicts(rows)
 def list_all_facts() -> List[Dict[str, Any]]:
     query = """
@@ -185,7 +222,6 @@ def list_all_facts() -> List[Dict[str, Any]]:
     """
     with _managed_connection() as connection:
         rows = connection.execute(query).fetchall()
-
     return _rows_to_dicts(rows)
 def create_relation(
     relation_id: str,
@@ -238,7 +274,12 @@ def find_relation_between_facts(
     with _managed_connection() as connection:
         row = connection.execute(
             query,
-            (fact_a_id, fact_b_id, fact_b_id, fact_a_id),
+            (
+                fact_a_id,
+                fact_b_id,
+                fact_b_id,
+                fact_a_id,
+            ),
         ).fetchone()
     return _row_to_dict(row)
 def list_relations_by_document(
@@ -259,8 +300,13 @@ def list_relations_by_document(
         ORDER BY relations.created_at
     """
     with _managed_connection() as connection:
-        rows = connection.execute(query, (doc_id, doc_id)).fetchall()
-
+        rows = connection.execute(
+            query,
+            (
+                doc_id,
+                doc_id,
+            ),
+        ).fetchall()
     return _rows_to_dicts(rows)
 def create_extraction_issue(
     issue_id: str,
@@ -297,9 +343,6 @@ def create_extraction_issue(
 def list_issues_by_document(
     doc_id: str,
 ) -> List[Dict[str, Any]]:
-    """
-    Retrieve all processing issues for a document.
-    """
     query = """
         SELECT *
         FROM extraction_issues
@@ -307,5 +350,53 @@ def list_issues_by_document(
         ORDER BY created_at
     """
     with _managed_connection() as connection:
-        rows = connection.execute(query, (doc_id,)).fetchall()
+        rows = connection.execute(
+            query,
+            (doc_id,),
+        ).fetchall()
     return _rows_to_dicts(rows)
+def reset_document_for_reprocessing(
+    document_id: str,
+) -> None:
+    with _managed_connection() as connection:
+        connection.execute(
+            """
+            DELETE FROM relations
+            WHERE fact_a_id IN (
+                SELECT id
+                FROM facts
+                WHERE doc_id = ?
+            )
+            OR fact_b_id IN (
+                SELECT id
+                FROM facts
+                WHERE doc_id = ?
+            )
+            """,
+            (
+                document_id,
+                document_id,
+            ),
+        )
+        connection.execute(
+            """
+            DELETE FROM facts
+            WHERE doc_id = ?
+            """,
+            (document_id,),
+        )
+        connection.execute(
+            """
+            DELETE FROM extraction_issues
+            WHERE doc_id = ?
+            """,
+            (document_id,),
+        )
+        connection.execute(
+            """
+            UPDATE documents
+            SET status = 'queued'
+            WHERE id = ?
+            """,
+            (document_id,),
+        )

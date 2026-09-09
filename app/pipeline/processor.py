@@ -51,14 +51,30 @@ def _record_issue(
         created_at=_now_iso(),
     )
     summary.issues_recorded += 1
+def _normalize_evidence_text(value: str) -> str:
+    replacements = {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2212": "-",
+        "\u00a0": " ",
+        "\u200b": "",
+    }
+    for old_value, new_value in replacements.items():
+        value = value.replace(old_value, new_value)
+    return " ".join(value.split()).casefold().strip()
 def _validate_fact_evidence(
     fact: ExtractedFact,
     chunk: TextChunk,
-) -> None:
-    if fact.quote.strip() not in chunk.text:
-        raise ValueError(
-            "The fact quote was not found exactly in the source chunk."
-        )
+) -> bool:
+    source_text = _normalize_evidence_text(chunk.text)
+    quote_text = _normalize_evidence_text(fact.quote)
+    quote_text = quote_text.strip("\"'")
+
+    return bool(quote_text) and quote_text in source_text
 def _store_fact_and_relationships(
     document_id: str,
     fact: ExtractedFact,
