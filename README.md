@@ -28,6 +28,9 @@ API documentation:
 http://127.0.0.1:8000/docs
 ```
 Never commit `.env` because it contains private credentials.
+## Video Demo
+[Watch the three-minute demo] https://youtu.be/2-vBzy5p4CU
+The demo shows PDF upload, background processing, extracted facts, source evidence, cross-document relationships, and failure handling.
 ## Approach
 The system follows this pipeline:
 ```text
